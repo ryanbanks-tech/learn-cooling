@@ -18,7 +18,7 @@ clean:
 # Run the Go project
 run:
 	@echo "Running the project..."
-	cd $(FRONTEND_DIR) && go run main.go
+	cd $(BACKEND_DIR) && go run main.go
 
 
 # Help command to display available targets
