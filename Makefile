@@ -3,12 +3,17 @@ FRONTEND_DIR = frontend
 BACKEND_DIR = backend
 
 # Default target executed when no arguments are provided to 'make'
-all: build run
+all: install build run
 
 # Build the Go project
 build:
 	@echo "Building the project..."
 	cd frontend && npm run build
+
+# Install the dependencies
+install:
+	@echo "Installing the dependencies..."
+	cd $(FRONTEND_DIR) && npm install
 
 # Clean the build artifacts
 clean:
@@ -19,7 +24,6 @@ clean:
 run:
 	@echo "Running the project..."
 	cd $(BACKEND_DIR) && go run main.go
-
 
 # Help command to display available targets
 help:
