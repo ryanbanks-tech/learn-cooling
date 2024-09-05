@@ -9,7 +9,6 @@ all: build run
 build:
 	@echo "Building the project..."
 	cd frontend && npm run build
-	npm run build
 
 # Clean the build artifacts
 clean:
