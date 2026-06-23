@@ -3,7 +3,14 @@
 An interactive explainer for how a home air conditioner works. Click through the
 four phases of the refrigeration cycle — **compression → condensation → expansion
 → evaporation** — and see what happens to the refrigerant at each step and what it
-means for your home.
+means for your home. You can also:
+
+- flip the loop into **heat-pump (heating) mode** to see the reversing-valve idea,
+- switch the **refrigerant** (R-410A, R-32, R-134a, and R-717 / ammonia) and watch
+  the real pressures and discharge temperatures change, and
+- browse **"what could go wrong"** — the common home-AC faults (dirty filter,
+  refrigerant leak, dirty/frozen coils, weak compressor…) tied to the phase each one
+  disrupts.
 
 Live at [learncooling.com](https://learncooling.com).
 
@@ -19,8 +26,11 @@ web/static/style.css
 web/static/app.js
 ```
 
-The four phases are defined once as Go structs in `main.go`. They drive the
-server-rendered page, the clickable diagram, and the `/api/phases` JSON endpoint.
+The data — phases, modes, refrigerants, and faults — is defined once as Go structs
+in `main.go`. It drives the server-rendered page, the clickable diagram, and the
+`/api/cycle` JSON endpoint. Pressures and temperatures aren't stored per phase;
+the browser computes them from the selected refrigerant's saturation curve and the
+current mode.
 
 ## Run locally
 
@@ -36,10 +46,11 @@ Then open http://localhost:8080. Set `PORT` to change the port.
 
 | Path           | Description                          |
 | -------------- | ------------------------------------ |
-| `/`            | The interactive page                 |
-| `/api/phases`  | The four phases as JSON              |
-| `/healthz`     | Health check (used by Render)        |
-| `/static/*`    | Embedded CSS / JS                    |
+| `/`            | The interactive page                          |
+| `/api/cycle`   | Full dataset: modes, refrigerants, phases, faults |
+| `/api/phases`  | Just the four phases (kept for compatibility) |
+| `/healthz`     | Health check (used by Render)                 |
+| `/static/*`    | Embedded CSS / JS                             |
 
 ## Deploy
 

@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="dark">
     <title>Learn Cooling — How Your Home AC Really Works</title>
-    <meta name="description" content="An interactive walkthrough of the refrigeration cycle. Click through the four phases — compression, condensation, expansion, and evaporation — to see how your home air conditioner keeps you cool.">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <meta name="description" content="An interactive walkthrough of the refrigeration cycle. Click through the four phases — compression, condensation, expansion, and evaporation — switch between cooling and heat-pump heating, compare refrigerants, and see what commonly goes wrong with home AC.">
     <link rel="stylesheet" href="/static/style.css">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>❄️</text></svg>">
 </head>
@@ -15,20 +15,36 @@
         <h1>How does your air conditioner actually make cold?</h1>
         <p class="lede">
             Your AC doesn't create cold — it <em>moves heat</em>. The same refrigerant loops
-            around forever, changing pressure and state to carry heat from inside your home to
-            the outdoors. Click any stage in the loop below to see what's happening.
+            around forever, changing pressure and state to carry heat from one place to another.
+            Click any stage in the loop, flip it into <em>heat-pump</em> mode, or swap the
+            refrigerant to see how the numbers change.
         </p>
     </header>
 
     <main>
+        <section class="controls" aria-label="Controls">
+            <div class="control-block">
+                <span class="control-label">Mode</span>
+                <div id="mode-toggle" class="toggle" role="group" aria-label="Cooling or heating mode"></div>
+            </div>
+            <div class="control-block">
+                <span class="control-label">Refrigerant</span>
+                <div id="ref-toggle" class="toggle" role="group" aria-label="Refrigerant choice"></div>
+            </div>
+        </section>
+
+        <p id="mode-banner" class="mode-banner"></p>
+
         <section class="stage" aria-label="Refrigeration cycle diagram">
             <div class="diagram-wrap">
                 <svg id="cycle" viewBox="0 0 800 520" role="img" aria-label="Refrigeration cycle loop with four clickable stages">
-                    <!-- zone backgrounds -->
-                    <rect class="zone zone-out" x="30" y="40" width="350" height="440" rx="18"/>
-                    <rect class="zone zone-in"  x="420" y="40" width="350" height="440" rx="18"/>
-                    <text class="zone-label" x="205" y="68">OUTDOORS</text>
-                    <text class="zone-label" x="595" y="68">INSIDE YOUR HOME</text>
+                    <!-- zone backgrounds: the loop always has a hot (heat-rejecting) side and a cold (heat-absorbing) side -->
+                    <rect class="zone zone-hot"  x="30" y="40" width="350" height="440" rx="18"/>
+                    <rect class="zone zone-cold" x="420" y="40" width="350" height="440" rx="18"/>
+                    <text class="zone-label" x="205" y="66">HEAT RELEASED</text>
+                    <text class="zone-sub"   x="205" y="84">condenser side · high pressure</text>
+                    <text class="zone-label" x="595" y="66">HEAT ABSORBED</text>
+                    <text class="zone-sub"   x="595" y="84">evaporator side · low pressure</text>
 
                     <!-- pipes (flow is clockwise: compressor → condenser → expansion → evaporator → back) -->
                     <path id="pipeA" class="pipe pipe-hot"  d="M160 340 L160 170"/>
@@ -55,27 +71,35 @@
                     <!-- nodes -->
                     <g class="node" data-phase="compression" tabindex="0" role="button" aria-label="Stage 1: Compression">
                         <rect x="85" y="340" width="150" height="80" rx="14"/>
-                        <text class="node-num" x="100" y="368">1</text>
-                        <text class="node-title" x="160" y="375">Compressor</text>
-                        <text class="node-sub" x="160" y="398">compression</text>
+                        <circle class="node-badge" cx="109" cy="364" r="13"/>
+                        <text class="node-num" x="109" y="369">1</text>
+                        <text class="node-title" x="163" y="388">Compressor</text>
+                        <text class="node-sub" x="163" y="406">compression</text>
+                        <text class="node-loc" x="160" y="442">Outdoor unit</text>
                     </g>
                     <g class="node" data-phase="condensation" tabindex="0" role="button" aria-label="Stage 2: Condensation">
                         <rect x="85" y="90" width="150" height="80" rx="14"/>
-                        <text class="node-num" x="100" y="118">2</text>
-                        <text class="node-title" x="160" y="125">Condenser</text>
-                        <text class="node-sub" x="160" y="148">condensation</text>
+                        <circle class="node-badge" cx="109" cy="114" r="13"/>
+                        <text class="node-num" x="109" y="119">2</text>
+                        <text class="node-title" x="163" y="138">Condenser</text>
+                        <text class="node-sub" x="163" y="156">condensation</text>
+                        <text class="node-loc" id="loc-condenser" x="160" y="188">Outdoors</text>
                     </g>
                     <g class="node" data-phase="expansion" tabindex="0" role="button" aria-label="Stage 3: Expansion">
                         <rect x="565" y="90" width="150" height="80" rx="14"/>
-                        <text class="node-num" x="580" y="118">3</text>
-                        <text class="node-title" x="640" y="125">Expansion valve</text>
-                        <text class="node-sub" x="640" y="148">expansion</text>
+                        <circle class="node-badge" cx="589" cy="114" r="13"/>
+                        <text class="node-num" x="589" y="119">3</text>
+                        <text class="node-title" x="643" y="138">Expansion valve</text>
+                        <text class="node-sub" x="643" y="156">expansion</text>
+                        <text class="node-loc" x="640" y="188">Metering device</text>
                     </g>
                     <g class="node" data-phase="evaporation" tabindex="0" role="button" aria-label="Stage 4: Evaporation">
                         <rect x="565" y="340" width="150" height="80" rx="14"/>
-                        <text class="node-num" x="580" y="368">4</text>
-                        <text class="node-title" x="640" y="375">Evaporator</text>
-                        <text class="node-sub" x="640" y="398">evaporation</text>
+                        <circle class="node-badge" cx="589" cy="364" r="13"/>
+                        <text class="node-num" x="589" y="369">4</text>
+                        <text class="node-title" x="643" y="388">Evaporator</text>
+                        <text class="node-sub" x="643" y="406">evaporation</text>
+                        <text class="node-loc" id="loc-evaporator" x="640" y="442">Indoors</text>
                     </g>
                 </svg>
             </div>
@@ -83,9 +107,13 @@
             <aside id="panel" class="panel" aria-live="polite">
                 <div class="panel-empty">
                     <p class="panel-hint">👆 Tap a stage</p>
-                    <p>Pick any box in the loop to read what happens to the refrigerant there — and what it means for your home.</p>
+                    <p>Pick any box in the loop to read what happens to the refrigerant there — with the real pressures and temperatures for the refrigerant you've selected.</p>
                 </div>
             </aside>
+        </section>
+
+        <section class="ref-section" aria-label="Selected refrigerant">
+            <div id="ref-card" class="ref-card"></div>
         </section>
 
         <section class="prose">
@@ -94,8 +122,18 @@
                 A home air conditioner is a heat pump. A special fluid called <strong>refrigerant</strong>
                 runs in a sealed loop, and at every corner of that loop it's deliberately squeezed,
                 cooled, expanded, or warmed so it can pick up heat in one place and drop it off in another.
-                Repeat thousands of times an hour and your living room gets cold.
+                Run it one way and you cool the house; flip a <strong>reversing valve</strong> and the very
+                same loop heats it.
             </p>
+        </section>
+
+        <section class="faults-section" aria-label="What could go wrong">
+            <h2>⚠️ What could go wrong</h2>
+            <p class="faults-intro">
+                Almost every home-AC problem traces back to one of these. Tap a card to see the cause,
+                what it does to the cycle, what you'd notice, and how it's fixed.
+            </p>
+            <div id="faults" class="faults-grid"></div>
         </section>
 
         <!-- Server-rendered fallback so the content works without JavaScript and for search engines -->
@@ -103,8 +141,13 @@
             <section class="prose">
                 <h2>The four stages</h2>
                 {{range .Phases}}
-                <h3>{{.Number}}. {{.Name}} — {{.Component}} ({{.Location}})</h3>
+                <h3>{{.Number}}. {{.Name}} — {{.Component}}</h3>
                 <p>{{.Detail}}</p>
+                {{end}}
+                <h2>What could go wrong</h2>
+                {{range .Faults}}
+                <h3>{{.Title}}</h3>
+                <p><strong>Cause:</strong> {{.Cause}} <strong>Effect:</strong> {{.Effect}} <strong>Fix:</strong> {{.Fix}}</p>
                 {{end}}
             </section>
         </noscript>
