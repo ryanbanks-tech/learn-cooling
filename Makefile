@@ -1,46 +1,37 @@
-# Define the directories
-FRONTEND_DIR = frontend
-BACKEND_DIR = backend
+BINARY = learn-cooling
 
-# Default target executed when no arguments are provided to 'make'
-all: install react-build go-build run
+# Default: build and run.
+all: builds run
 
-# Build both the frontend and backend
-builds: install react-build go-build
+# Build the single self-contained binary (web assets are embedded via go:embed).
+# Named "builds" to match the Render Build Command.
+builds:
+	@echo "Building $(BINARY)..."
+	go build -o $(BINARY) .
 
-# Build the Go project
-react-build:
-	@echo "Building the project..."
-	cd frontend && npm run build
-
-# Build the Go project
-go-build:
-	@echo "Building the binary..."
-	cd $(BACKEND_DIR) && go build -o learn-cooling
-
-# Install the dependencies
-install:
-	@echo "Installing the dependencies..."
-	cd $(FRONTEND_DIR) && npm install
-
-# Clean the build artifacts
-clean:
-	@echo "Cleaning up..."
-	cd $(FRONTEND_DIR) && rm -rf build
-
-# Run the Go project
+# Run the compiled binary (this is the Render Start Command).
 run:
-	@echo "Running the project..."
-	cd $(BACKEND_DIR) && ./learn-cooling
+	./$(BINARY)
 
-# Help command to display available targets
+# Run from source — handy during development.
+dev:
+	go run .
+
+# Format and vet.
+check:
+	go fmt ./...
+	go vet ./...
+
+# Remove build artifacts.
+clean:
+	rm -f $(BINARY)
+
 help:
 	@echo "Makefile targets:"
-	@echo "  make all     		- Build and run the project"
-	@echo "  make builds  		- Build the project and the go binary"
-	@echo "  make react-build   - Build the project"
-	@echo "  make go-build   	- Build the go binary"
-	@echo "  make install  		- Install the dependencies"
-	@echo "  make clean   		- Remove build artifacts"
-	@echo "  make run     		- Run the project"
-	@echo "  make help    		- Display this help message"
+	@echo "  make builds  - Build the binary (Render build command)"
+	@echo "  make run     - Run the compiled binary (Render start command)"
+	@echo "  make dev     - Run from source (go run)"
+	@echo "  make check   - go fmt + go vet"
+	@echo "  make clean   - Remove build artifacts"
+
+.PHONY: all builds run dev check clean help

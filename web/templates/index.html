@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Learn Cooling — How Your Home AC Really Works</title>
+    <meta name="description" content="An interactive walkthrough of the refrigeration cycle. Click through the four phases — compression, condensation, expansion, and evaporation — to see how your home air conditioner keeps you cool.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>❄️</text></svg>">
+</head>
+<body>
+    <header class="hero">
+        <p class="kicker">❄️ Learn Cooling</p>
+        <h1>How does your air conditioner actually make cold?</h1>
+        <p class="lede">
+            Your AC doesn't create cold — it <em>moves heat</em>. The same refrigerant loops
+            around forever, changing pressure and state to carry heat from inside your home to
+            the outdoors. Click any stage in the loop below to see what's happening.
+        </p>
+    </header>
+
+    <main>
+        <section class="stage" aria-label="Refrigeration cycle diagram">
+            <div class="diagram-wrap">
+                <svg id="cycle" viewBox="0 0 800 520" role="img" aria-label="Refrigeration cycle loop with four clickable stages">
+                    <!-- zone backgrounds -->
+                    <rect class="zone zone-out" x="30" y="40" width="350" height="440" rx="18"/>
+                    <rect class="zone zone-in"  x="420" y="40" width="350" height="440" rx="18"/>
+                    <text class="zone-label" x="205" y="68">OUTDOORS</text>
+                    <text class="zone-label" x="595" y="68">INSIDE YOUR HOME</text>
+
+                    <!-- pipes (flow is clockwise: compressor → condenser → expansion → evaporator → back) -->
+                    <path id="pipeA" class="pipe pipe-hot"  d="M160 340 L160 170"/>
+                    <path id="pipeB" class="pipe pipe-warm" d="M235 130 L565 130"/>
+                    <path id="pipeC" class="pipe pipe-cool" d="M640 170 L640 340"/>
+                    <path id="pipeD" class="pipe pipe-cold" d="M565 380 L235 380"/>
+
+                    <!-- direction arrows -->
+                    <polygon class="arrow" points="160,238 153,252 167,252"/>
+                    <polygon class="arrow" points="408,130 394,123 394,137"/>
+                    <polygon class="arrow" points="640,282 633,268 647,268"/>
+                    <polygon class="arrow" points="392,380 406,373 406,387"/>
+
+                    <!-- flowing refrigerant particles -->
+                    <circle class="dot dot-hot"  r="6"><animateMotion dur="2.6s" repeatCount="indefinite"><mpath href="#pipeA"/></animateMotion></circle>
+                    <circle class="dot dot-hot"  r="6"><animateMotion dur="2.6s" begin="1.3s" repeatCount="indefinite"><mpath href="#pipeA"/></animateMotion></circle>
+                    <circle class="dot dot-warm" r="6"><animateMotion dur="3.4s" repeatCount="indefinite"><mpath href="#pipeB"/></animateMotion></circle>
+                    <circle class="dot dot-warm" r="6"><animateMotion dur="3.4s" begin="1.7s" repeatCount="indefinite"><mpath href="#pipeB"/></animateMotion></circle>
+                    <circle class="dot dot-cool" r="6"><animateMotion dur="2.6s" repeatCount="indefinite"><mpath href="#pipeC"/></animateMotion></circle>
+                    <circle class="dot dot-cool" r="6"><animateMotion dur="2.6s" begin="1.3s" repeatCount="indefinite"><mpath href="#pipeC"/></animateMotion></circle>
+                    <circle class="dot dot-cold" r="6"><animateMotion dur="3.4s" repeatCount="indefinite"><mpath href="#pipeD"/></animateMotion></circle>
+                    <circle class="dot dot-cold" r="6"><animateMotion dur="3.4s" begin="1.7s" repeatCount="indefinite"><mpath href="#pipeD"/></animateMotion></circle>
+
+                    <!-- nodes -->
+                    <g class="node" data-phase="compression" tabindex="0" role="button" aria-label="Stage 1: Compression">
+                        <rect x="85" y="340" width="150" height="80" rx="14"/>
+                        <text class="node-num" x="100" y="368">1</text>
+                        <text class="node-title" x="160" y="375">Compressor</text>
+                        <text class="node-sub" x="160" y="398">compression</text>
+                    </g>
+                    <g class="node" data-phase="condensation" tabindex="0" role="button" aria-label="Stage 2: Condensation">
+                        <rect x="85" y="90" width="150" height="80" rx="14"/>
+                        <text class="node-num" x="100" y="118">2</text>
+                        <text class="node-title" x="160" y="125">Condenser</text>
+                        <text class="node-sub" x="160" y="148">condensation</text>
+                    </g>
+                    <g class="node" data-phase="expansion" tabindex="0" role="button" aria-label="Stage 3: Expansion">
+                        <rect x="565" y="90" width="150" height="80" rx="14"/>
+                        <text class="node-num" x="580" y="118">3</text>
+                        <text class="node-title" x="640" y="125">Expansion valve</text>
+                        <text class="node-sub" x="640" y="148">expansion</text>
+                    </g>
+                    <g class="node" data-phase="evaporation" tabindex="0" role="button" aria-label="Stage 4: Evaporation">
+                        <rect x="565" y="340" width="150" height="80" rx="14"/>
+                        <text class="node-num" x="580" y="368">4</text>
+                        <text class="node-title" x="640" y="375">Evaporator</text>
+                        <text class="node-sub" x="640" y="398">evaporation</text>
+                    </g>
+                </svg>
+            </div>
+
+            <aside id="panel" class="panel" aria-live="polite">
+                <div class="panel-empty">
+                    <p class="panel-hint">👆 Tap a stage</p>
+                    <p>Pick any box in the loop to read what happens to the refrigerant there — and what it means for your home.</p>
+                </div>
+            </aside>
+        </section>
+
+        <section class="prose">
+            <h2>The big idea</h2>
+            <p>
+                A home air conditioner is a heat pump. A special fluid called <strong>refrigerant</strong>
+                runs in a sealed loop, and at every corner of that loop it's deliberately squeezed,
+                cooled, expanded, or warmed so it can pick up heat in one place and drop it off in another.
+                Repeat thousands of times an hour and your living room gets cold.
+            </p>
+        </section>
+
+        <!-- Server-rendered fallback so the content works without JavaScript and for search engines -->
+        <noscript>
+            <section class="prose">
+                <h2>The four stages</h2>
+                {{range .Phases}}
+                <h3>{{.Number}}. {{.Name}} — {{.Component}} ({{.Location}})</h3>
+                <p>{{.Detail}}</p>
+                {{end}}
+            </section>
+        </noscript>
+    </main>
+
+    <footer>
+        <p>Built with Go · Learn Cooling © {{.Year}}</p>
+    </footer>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
