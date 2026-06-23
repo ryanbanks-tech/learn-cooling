@@ -7,6 +7,7 @@
     var refToggle = document.getElementById("ref-toggle");
     var modeBanner = document.getElementById("mode-banner");
     var refCard = document.getElementById("ref-card");
+    var fansEl = document.getElementById("fans");
     var faultsEl = document.getElementById("faults");
 
     var data = null;            // { modes, refrigerants, phases, faults }
@@ -33,6 +34,7 @@
 
     function init() {
         buildToggles();
+        buildFans();
         buildFaults();
         wireNodes();
 
@@ -219,6 +221,26 @@
 
     function fact(k, v) {
         return '<div class="fact"><span class="k">' + esc(k) + '</span><span class="v">' + esc(v) + "</span></div>";
+    }
+
+    // ---- fans --------------------------------------------------------------
+
+    function buildFans() {
+        data.fans.forEach(function (f) {
+            var card = document.createElement("div");
+            card.className = "fan";
+            card.innerHTML =
+                '<div class="fan-head">' +
+                    '<span class="fan-icon">' + f.icon + "</span>" +
+                    "<div>" +
+                        '<h3 class="fan-name">' + esc(f.name) + "</h3>" +
+                        '<p class="fan-meta">' + esc(f.location) + " · " + esc(f.type) + "</p>" +
+                    "</div>" +
+                "</div>" +
+                '<p class="fan-job">' + esc(f.job) + "</p>" +
+                '<p class="fan-detail">' + esc(f.detail) + "</p>";
+            fansEl.appendChild(card);
+        });
     }
 
     // ---- faults ------------------------------------------------------------

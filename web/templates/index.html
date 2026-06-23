@@ -127,6 +127,16 @@
             </p>
         </section>
 
+        <section class="fans-section" aria-label="The fans">
+            <h2>💨 The fans that move the air</h2>
+            <p class="fans-intro">
+                The refrigerant carries the heat, but it can't grab or release any of it without air
+                flowing across the coils. That's the job of two fans — and they're a big reason airflow
+                problems show up so often below.
+            </p>
+            <div id="fans" class="fans-grid"></div>
+        </section>
+
         <section class="faults-section" aria-label="What could go wrong">
             <h2>⚠️ What could go wrong</h2>
             <p class="faults-intro">
@@ -142,6 +152,11 @@
                 <h2>The four stages</h2>
                 {{range .Phases}}
                 <h3>{{.Number}}. {{.Name}} — {{.Component}}</h3>
+                <p>{{.Detail}}</p>
+                {{end}}
+                <h2>The fans that move the air</h2>
+                {{range .Fans}}
+                <h3>{{.Name}} — {{.Location}}</h3>
                 <p>{{.Detail}}</p>
                 {{end}}
                 <h2>What could go wrong</h2>

@@ -316,6 +316,29 @@ main { max-width: 1100px; margin: 0 auto; padding: 16px 24px 48px; }
 .rstat .v { font-weight: 700; font-size: 1.02rem; }
 .gwp-zero { color: var(--cold); }
 
+/* fans */
+.fans-section { margin-top: 56px; }
+.fans-section h2 { font-size: 1.6rem; margin-bottom: 6px; }
+.fans-intro { color: var(--ink-dim); max-width: 720px; margin-top: 0; }
+.fans-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    margin-top: 20px;
+}
+.fan {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 20px;
+}
+.fan-head { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; }
+.fan-icon { font-size: 1.9rem; }
+.fan-name { margin: 0; font-size: 1.2rem; }
+.fan-meta { margin: 2px 0 0; color: var(--ink-dim); font-size: 0.85rem; }
+.fan-job { color: var(--ink); font-weight: 600; margin: 0 0 10px; }
+.fan-detail { color: var(--ink-dim); margin: 0; font-size: 0.94rem; line-height: 1.6; }
+
 /* faults */
 .faults-section { margin-top: 56px; }
 .faults-section h2 { font-size: 1.6rem; margin-bottom: 6px; }

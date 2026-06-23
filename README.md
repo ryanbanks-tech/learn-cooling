@@ -26,8 +26,8 @@ web/static/style.css
 web/static/app.js
 ```
 
-The data — phases, modes, refrigerants, and faults — is defined once as Go structs
-in `main.go`. It drives the server-rendered page, the clickable diagram, and the
+The data — phases, modes, refrigerants, fans, and faults — is defined once as Go
+structs in `main.go`. It drives the server-rendered page, the clickable diagram, and the
 `/api/cycle` JSON endpoint. Pressures and temperatures aren't stored per phase;
 the browser computes them from the selected refrigerant's saturation curve and the
 current mode.

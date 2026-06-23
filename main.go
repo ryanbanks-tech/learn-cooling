@@ -69,6 +69,19 @@ type Refrigerant struct {
 	Note          string     `json:"note"`
 }
 
+// Fan is one of the air-movers in the system. The cycle only works if air is
+// pushed across the coils, and that's what the fans do.
+type Fan struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Icon     string `json:"icon"`
+	Location string `json:"location"`
+	Type     string `json:"type"`
+	Job      string `json:"job"`
+	Detail   string `json:"detail"`
+	Phase    string `json:"phase"` // the cycle stage this fan serves
+}
+
 // Fault is something that commonly goes wrong with a home system, tied to the
 // phase of the cycle it disrupts.
 type Fault struct {
@@ -218,6 +231,29 @@ var refrigerants = []Refrigerant{
 	},
 }
 
+var fans = []Fan{
+	{
+		ID:       "condenser-fan",
+		Name:     "Condenser fan",
+		Icon:     "🌀",
+		Location: "Outdoor unit",
+		Type:     "Axial (propeller) fan",
+		Job:      "Pulls outdoor air across the hot condenser coil so the refrigerant can dump its heat.",
+		Detail:   "It's the big fan you see spinning on top of the outdoor unit, blowing warm air straight up and out. The more clean air it moves, the better the refrigerant condenses back into a liquid. If it slows or stops — a worn motor or a dead capacitor — the high-side pressure spikes, the compressor overheats, and the system can trip on a safety switch.",
+		Phase:    "condensation",
+	},
+	{
+		ID:       "blower-fan",
+		Name:     "Indoor blower",
+		Icon:     "🌬️",
+		Location: "Indoor unit / air handler",
+		Type:     "Centrifugal 'squirrel-cage' blower",
+		Job:      "Pushes your home's air across the cold evaporator coil and out through the ducts.",
+		Detail:   "This is the fan you actually hear inside and feel at the vents. It draws warm room air in through the return, forces it over the cold evaporator where it's chilled and dehumidified, and sends it back to your rooms. Choke its airflow — a dirty filter, closed vents, or a tired motor — and the coil gets so cold it freezes over.",
+		Phase:    "evaporation",
+	},
+}
+
 var faults = []Fault{
 	{
 		ID:       "dirty-filter",
@@ -286,6 +322,17 @@ var faults = []Fault{
 		Fix:      "A pro must replace it — often costly enough that a whole new unit makes more sense. Prevent it by fixing leaks and dirty coils early, since those kill compressors.",
 	},
 	{
+		ID:       "bad-capacitor",
+		Title:    "Failed capacitor",
+		Icon:     "🔋",
+		Phase:    "compression",
+		Severity: "Call a pro",
+		Cause:    "Capacitors store and release the electrical jolt that starts and runs the compressor and the fan motors. Heat and age make them weaken, bulge, and fail — it's one of the single most common AC breakdowns, especially in a heat wave.",
+		Effect:   "Without the capacitor's boost, a motor can't get going or keeps stalling. The outdoor fan may sit dead still while the unit just hums, or the compressor strains to start, pulls huge current, and trips the breaker.",
+		Symptoms: "A humming outdoor unit with a fan that won't spin (sometimes it'll start if you nudge a blade — a classic sign), a clicking or buzzing relay, no cooling on the hottest days, or a visibly swollen, domed top on the capacitor.",
+		Fix:      "It's a cheap part, but it holds a dangerous charge even with the power off. A pro discharges it safely and installs one with the exact microfarad (µF) and voltage rating.",
+	},
+	{
 		ID:       "stuck-valve",
 		Title:    "Stuck metering device",
 		Icon:     "🚪",
@@ -314,6 +361,7 @@ type cyclePayload struct {
 	Modes        []Mode        `json:"modes"`
 	Refrigerants []Refrigerant `json:"refrigerants"`
 	Phases       []Phase       `json:"phases"`
+	Fans         []Fan         `json:"fans"`
 	Faults       []Fault       `json:"faults"`
 }
 
@@ -338,6 +386,7 @@ func main() {
 			Modes:        modes,
 			Refrigerants: refrigerants,
 			Phases:       phases,
+			Fans:         fans,
 			Faults:       faults,
 		})
 	})
@@ -358,10 +407,12 @@ func main() {
 		}
 		data := struct {
 			Phases []Phase
+			Fans   []Fan
 			Faults []Fault
 			Year   int
 		}{
 			Phases: phases,
+			Fans:   fans,
 			Faults: faults,
 			Year:   time.Now().Year(),
 		}
