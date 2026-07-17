@@ -247,25 +247,28 @@
 
     function buildFaults() {
         data.faults.forEach(function (f) {
-            var card = document.createElement("button");
-            card.type = "button";
+            // A div wrapping a button + body, rather than one big <button> — the
+            // body contains a link, and an <a> inside a <button> is invalid HTML.
+            var card = document.createElement("div");
             card.className = "fault";
-            card.setAttribute("aria-expanded", "false");
             card.innerHTML =
-                '<div class="fault-head">' +
+                '<button type="button" class="fault-head" aria-expanded="false">' +
                     '<span class="fault-icon">' + f.icon + "</span>" +
                     '<span class="fault-title">' + esc(f.title) + "</span>" +
                     '<span class="fault-sev sev-' + sevClass(f.severity) + '">' + esc(f.severity) + "</span>" +
-                "</div>" +
+                "</button>" +
                 '<div class="fault-body">' +
                     detail("Cause", f.cause) +
                     detail("What it does", f.effect) +
                     detail("You'd notice", f.symptoms) +
                     detail("The fix", f.fix) +
+                    '<a class="fault-link" href="/problems/' + f.slug + '">Full guide: ' + esc(f.question) + " →</a>" +
                 "</div>";
-            card.addEventListener("click", function () {
+
+            var head = card.querySelector(".fault-head");
+            head.addEventListener("click", function () {
                 var open = card.classList.toggle("open");
-                card.setAttribute("aria-expanded", open ? "true" : "false");
+                head.setAttribute("aria-expanded", open ? "true" : "false");
             });
             faultsEl.appendChild(card);
         });

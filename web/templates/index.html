@@ -1,47 +1,5 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="color-scheme" content="dark">
-
-    <!-- Google Analytics 4 -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-21842WSWBZ"></script>
-    <script>
-        window.dataLayer = window.dataLayer || [];
-        function gtag(){dataLayer.push(arguments);}
-        gtag('js', new Date());
-        gtag('config', 'G-21842WSWBZ');
-    </script>
-
-    <title>How Air Conditioning Works: The Refrigeration Cycle Explained</title>
-    <meta name="description" content="An interactive diagram of the refrigeration cycle. See how your home AC and heat pump move heat, compare refrigerants, and learn what commonly goes wrong.">
-    <link rel="canonical" href="https://learncooling.com/">
-
-    <!-- Open Graph / social sharing -->
-    <meta property="og:type" content="website">
-    <meta property="og:url" content="https://learncooling.com/">
-    <meta property="og:site_name" content="Learn Cooling">
-    <meta property="og:title" content="How Air Conditioning Works: The Refrigeration Cycle Explained">
-    <meta property="og:description" content="An interactive diagram of the refrigeration cycle. See how your home AC and heat pump move heat, compare refrigerants, and learn what commonly goes wrong.">
-    <meta property="og:image" content="https://learncooling.com/static/og.png">
-    <meta property="og:image:width" content="1200">
-    <meta property="og:image:height" content="630">
-    <meta property="og:image:alt" content="Diagram of the refrigeration cycle: compressor, condenser, expansion valve, and evaporator connected in a loop.">
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="How Air Conditioning Works: The Refrigeration Cycle Explained">
-    <meta name="twitter:description" content="An interactive diagram of the refrigeration cycle — click through the four phases and see what goes wrong in a real home system.">
-    <meta name="twitter:image" content="https://learncooling.com/static/og.png">
-
-    <link rel="stylesheet" href="/static/style.css">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>❄️</text></svg>">
-
-    <script type="application/ld+json">
-    {{.SchemaJSON}}
-    </script>
-</head>
-<body>
-    <header class="hero">
+{{define "content"}}
+<header class="hero">
         <p class="kicker">❄️ Learn Cooling</p>
         <h1>How does your air conditioner actually make cold?</h1>
         <p class="lede">
@@ -198,11 +156,8 @@
             </section>
         </noscript>
     </main>
+{{end}}
 
-    <footer>
-        <p>Built with Go · Learn Cooling © {{.Year}}</p>
-    </footer>
-
-    <script src="/static/app.js"></script>
-</body>
-</html>
+{{define "scripts"}}
+<script src="/static/app.js"></script>
+{{end}}

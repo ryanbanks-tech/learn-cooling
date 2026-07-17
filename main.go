@@ -13,396 +13,61 @@ import (
 	"time"
 )
 
-// canonicalHost is the one hostname we want search engines to index. Requests
-// arriving on the raw Render hostname get redirected here so ranking signals
-// aren't split across two domains serving identical content.
-const canonicalHost = "learncooling.com"
-
 //go:embed web/templates/*.html
 var templatesFS embed.FS
 
 //go:embed web/static/*
 var staticFS embed.FS
 
-// Phase is one stage of the vapor-compression refrigeration cycle. The numeric
-// pressures and temperatures aren't stored here — they're computed in the
-// browser from the selected refrigerant and mode, because they depend on both.
-type Phase struct {
-	ID           string `json:"id"`
-	Number       int    `json:"number"`
-	Name         string `json:"name"`
-	Component    string `json:"component"`
-	Role         string `json:"role"`         // compressor | condenser | expansion | evaporator
-	PressureSide string `json:"pressureSide"` // low | high | lowHigh | highLow
-	Accent       string `json:"accent"`
-	Summary      string `json:"summary"`
-	Detail       string `json:"detail"`
-	CoolLocation string `json:"coolLocation"` // where this happens in cooling mode
-	HeatLocation string `json:"heatLocation"` // where this happens in heating mode
-	CoolNote     string `json:"coolNote"`     // "in your home" note when cooling
-	HeatNote     string `json:"heatNote"`     // "in your home" note when heating
+// canonicalHost is the one hostname we want search engines to index. Requests
+// arriving on the raw Render hostname get redirected here so ranking signals
+// aren't split across two domains serving identical content.
+const canonicalHost = "learncooling.com"
+
+const siteURL = "https://" + canonicalHost
+
+// PageMeta is everything the shared layout needs for the <head>.
+type PageMeta struct {
+	Title       string
+	Description string
+	Path        string // canonical path, e.g. "/problems/bad-capacitor"
+	SchemaJSON  template.JS
 }
 
-// Mode is cooling or heating (heat-pump). It sets the saturation temperatures
-// the cycle runs between and explains which way heat is being moved.
-type Mode struct {
-	ID        string `json:"id"`
-	Name      string `json:"name"`
-	Icon      string `json:"icon"`
-	EvapTempC int    `json:"evapTempC"` // evaporator (low-side) saturation temp
-	CondTempC int    `json:"condTempC"` // condenser (high-side) saturation temp
-	Banner    string `json:"banner"`
+func (m PageMeta) Canonical() string { return siteURL + m.Path }
+
+// pageData is what every template receives. Fields not relevant to a given page
+// are simply left zero.
+type pageData struct {
+	Meta         PageMeta
+	Year         int
+	Modes        []Mode
+	Phases       []Phase
+	Fans         []Fan
+	Faults       []Fault
+	Refrigerants []Refrigerant
+
+	// Set on /problems/{slug} only.
+	Fault    *Fault
+	Related  []*Fault
+	RelPhase *Phase
 }
 
-// SatPoint is one (temperature, saturation pressure) reading for a refrigerant.
-type SatPoint struct {
-	TempC int     `json:"tempC"`
-	Bar   float64 `json:"bar"` // absolute saturation pressure, bar
+// Each page is parsed together with the shared layout so they can each define
+// their own "content" block without colliding.
+func mustPage(name string) *template.Template {
+	return template.Must(template.ParseFS(templatesFS,
+		"web/templates/layout.html", "web/templates/"+name))
 }
 
-// Refrigerant carries representative real-world properties. SatCurve gives the
-// absolute saturation pressure at the temperatures the cycle actually runs at,
-// so the browser can show the true high/low pressures for each fluid.
-type Refrigerant struct {
-	ID            string     `json:"id"`
-	Name          string     `json:"name"`
-	AltName       string     `json:"altName"`
-	Use           string     `json:"use"`
-	SatCurve      []SatPoint `json:"satCurve"`
-	DischargeTemp int        `json:"dischargeTemp"` // typical compressor discharge gas temp, °C
-	GWP           int        `json:"gwp"`           // global warming potential (CO2 = 1)
-	Safety        string     `json:"safety"`        // ASHRAE 34 class + plain words
-	Color         string     `json:"color"`
-	Note          string     `json:"note"`
-}
-
-// Fan is one of the air-movers in the system. The cycle only works if air is
-// pushed across the coils, and that's what the fans do.
-type Fan struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	Icon     string `json:"icon"`
-	Location string `json:"location"`
-	Type     string `json:"type"`
-	Job      string `json:"job"`
-	Detail   string `json:"detail"`
-	Phase    string `json:"phase"` // the cycle stage this fan serves
-}
-
-// Fault is something that commonly goes wrong with a home system, tied to the
-// phase of the cycle it disrupts.
-type Fault struct {
-	ID       string `json:"id"`
-	Title    string `json:"title"`
-	Icon     string `json:"icon"`
-	Phase    string `json:"phase"` // related phase id
-	Severity string `json:"severity"`
-	Cause    string `json:"cause"`
-	Effect   string `json:"effect"`
-	Symptoms string `json:"symptoms"`
-	Fix      string `json:"fix"`
-}
-
-var modes = []Mode{
-	{
-		ID:        "cooling",
-		Name:      "Cooling",
-		Icon:      "❄️",
-		EvapTempC: 5,
-		CondTempC: 45,
-		Banner:    "Heat is pulled out of your rooms and dumped outdoors.",
-	},
-	{
-		ID:        "heating",
-		Name:      "Heating (heat pump)",
-		Icon:      "🔥",
-		EvapTempC: -7,
-		CondTempC: 45,
-		Banner:    "A reversing valve flips the loop: heat is pulled from the cold outdoor air and released into your rooms.",
-	},
-}
-
-// phases lists the four stages in cycle order. They're the single source of
-// truth for the diagram, the side panel, and /api/phases.
-var phases = []Phase{
-	{
-		ID:           "compression",
-		Number:       1,
-		Name:         "Compression",
-		Component:    "Compressor",
-		Role:         "compressor",
-		PressureSide: "lowHigh",
-		Accent:       "#ef4444",
-		Summary:      "The pump that drives the whole loop. It squeezes the refrigerant gas, spiking its pressure and temperature.",
-		Detail:       "The compressor pulls in the cool, low-pressure gas returning from the evaporator and compresses it. Squeezing the gas forces its molecules together, which raises both its pressure and its temperature dramatically — it leaves as a hot, high-pressure gas. Think of it as the heart of the system: nothing moves around the loop without it.",
-		CoolLocation: "Outdoor unit",
-		HeatLocation: "Outdoor unit",
-		CoolNote:     "This is the part that hums and uses most of the electricity. When people say the AC 'kicked on,' they're hearing the compressor start.",
-		HeatNote:     "It works harder in heating: the colder the outdoor air, the bigger the squeeze it has to make, so the discharge gas runs even hotter than in cooling.",
-	},
-	{
-		ID:           "condensation",
-		Number:       2,
-		Name:         "Condensation",
-		Component:    "Condenser coil",
-		Role:         "condenser",
-		PressureSide: "high",
-		Accent:       "#f59e0b",
-		Summary:      "The refrigerant dumps its heat and condenses back into a liquid. This is the hot end of the loop.",
-		Detail:       "The hot gas flows through the condenser coil while a fan blows air across it. The refrigerant gives up its heat and, as it cools, condenses from a gas into a warm, high-pressure liquid. This is the step that actually delivers heat to wherever you want it.",
-		CoolLocation: "Outdoors",
-		HeatLocation: "Indoors — this is what warms your home",
-		CoolNote:     "That warm air blowing out the top of the outdoor unit? That's literally the heat from inside your home being thrown away.",
-		HeatNote:     "In heat-pump mode this coil is indoors. The 'waste heat' is now the whole point — it's what blows warm air into your rooms.",
-	},
-	{
-		ID:           "expansion",
-		Number:       3,
-		Name:         "Expansion",
-		Component:    "Expansion valve",
-		Role:         "expansion",
-		PressureSide: "highLow",
-		Accent:       "#38bdf8",
-		Summary:      "A tiny nozzle drops the pressure, and the refrigerant turns ice-cold.",
-		Detail:       "The warm liquid is forced through a very small opening — the expansion valve or metering device. On the far side the pressure suddenly drops, and that drop makes the refrigerant expand and its temperature plummet. It emerges as a cold, low-pressure mix of liquid and vapor, ready to soak up heat.",
-		CoolLocation: "Feeds the indoor coil",
-		HeatLocation: "Feeds the outdoor coil",
-		CoolNote:     "Same physics as an aerosol can getting cold when you spray it: let a pressurized fluid expand and it chills fast.",
-		HeatNote:     "In heating it has to chill the refrigerant below the freezing outdoor air so it can still absorb heat — that's why heat pumps need defrost cycles.",
-	},
-	{
-		ID:           "evaporation",
-		Number:       4,
-		Name:         "Evaporation",
-		Component:    "Evaporator coil",
-		Role:         "evaporator",
-		PressureSide: "low",
-		Accent:       "#22d3ee",
-		Summary:      "The cold coil absorbs heat from the air around it. This is the cold end of the loop.",
-		Detail:       "A blower pushes air across the cold evaporator coil. The refrigerant absorbs heat from that air, which makes it boil and evaporate back into a low-pressure gas. Whatever air passes the coil comes out colder. The gas then heads back to the compressor and the cycle repeats.",
-		CoolLocation: "Indoors",
-		HeatLocation: "Outdoors — it steals heat from cold air",
-		CoolNote:     "This is the only step you actually feel. It also dehumidifies — that's the water that drips from the indoor unit's drain line.",
-		HeatNote:     "Surprisingly, even 0 °C air has heat in it. Outdoors, this coil pulls that heat out — which is why a heat pump can warm your house using cold air.",
-	},
-}
-
-var refrigerants = []Refrigerant{
-	{
-		ID:            "r410a",
-		Name:          "R-410A",
-		AltName:       "Puron",
-		Use:           "The standard in U.S. home AC & heat pumps (2000s–early 2020s).",
-		SatCurve:      []SatPoint{{-7, 6.6}, {5, 9.3}, {45, 27.2}},
-		DischargeTemp: 80,
-		GWP:           2088,
-		Safety:        "A1 — non-toxic, non-flammable",
-		Color:         "#38bdf8",
-		Note:          "Runs at high pressure. A blend being phased down because of its high global-warming potential.",
-	},
-	{
-		ID:            "r32",
-		Name:          "R-32",
-		AltName:       "difluoromethane",
-		Use:           "Newer split systems — the main replacement for R-410A.",
-		SatCurve:      []SatPoint{{-7, 6.8}, {5, 9.5}, {45, 28.5}},
-		DischargeTemp: 95,
-		GWP:           675,
-		Safety:        "A2L — mildly flammable",
-		Color:         "#34d399",
-		Note:          "About a third of R-410A's warming impact, but it runs noticeably hotter at the compressor.",
-	},
-	{
-		ID:            "r134a",
-		Name:          "R-134a",
-		AltName:       "tetrafluoroethane",
-		Use:           "Car AC, refrigerators, and chillers (older equipment).",
-		SatCurve:      []SatPoint{{-7, 2.4}, {5, 3.5}, {45, 11.6}},
-		DischargeTemp: 70,
-		GWP:           1430,
-		Safety:        "A1 — non-toxic, non-flammable",
-		Color:         "#fbbf24",
-		Note:          "Low, easy-to-handle pressures and a gentle discharge temp — but a high GWP, so it's being phased out.",
-	},
-	{
-		ID:            "r717",
-		Name:          "R-717",
-		AltName:       "ammonia (NH₃)",
-		Use:           "Industrial refrigeration — cold storage, food plants, ice rinks.",
-		SatCurve:      []SatPoint{{-7, 3.2}, {5, 5.2}, {45, 17.8}},
-		DischargeTemp: 120,
-		GWP:           0,
-		Safety:        "B2L — toxic, mildly flammable",
-		Color:         "#a78bfa",
-		Note:          "Extremely efficient with zero warming impact — but toxic and corrosive to copper, so it's never used in homes, and it runs very hot.",
-	},
-}
-
-var fans = []Fan{
-	{
-		ID:       "condenser-fan",
-		Name:     "Condenser fan",
-		Icon:     "🌀",
-		Location: "Outdoor unit",
-		Type:     "Axial (propeller) fan",
-		Job:      "Pulls outdoor air across the hot condenser coil so the refrigerant can dump its heat.",
-		Detail:   "It's the big fan you see spinning on top of the outdoor unit, blowing warm air straight up and out. The more clean air it moves, the better the refrigerant condenses back into a liquid. If it slows or stops — a worn motor or a dead capacitor — the high-side pressure spikes, the compressor overheats, and the system can trip on a safety switch.",
-		Phase:    "condensation",
-	},
-	{
-		ID:       "blower-fan",
-		Name:     "Indoor blower",
-		Icon:     "🌬️",
-		Location: "Indoor unit / air handler",
-		Type:     "Centrifugal 'squirrel-cage' blower",
-		Job:      "Pushes your home's air across the cold evaporator coil and out through the ducts.",
-		Detail:   "This is the fan you actually hear inside and feel at the vents. It draws warm room air in through the return, forces it over the cold evaporator where it's chilled and dehumidified, and sends it back to your rooms. Choke its airflow — a dirty filter, closed vents, or a tired motor — and the coil gets so cold it freezes over.",
-		Phase:    "evaporation",
-	},
-}
-
-var faults = []Fault{
-	{
-		ID:       "dirty-filter",
-		Title:    "Dirty air filter",
-		Icon:     "🌫️",
-		Phase:    "evaporation",
-		Severity: "DIY",
-		Cause:    "The filter clogs with dust and chokes the airflow across the indoor coil.",
-		Effect:   "Too little warm air reaches the cold evaporator, so the refrigerant can't pick up enough heat to fully boil. The coil keeps getting colder until moisture on it freezes into ice — which blocks the airflow even more.",
-		Symptoms: "Weak airflow from the vents, ice on the indoor coil or copper lines, long run times, and creeping energy bills.",
-		Fix:      "Check the filter monthly and replace or wash it every 1–3 months. This is the single most common AC problem and the easiest to prevent.",
-	},
-	{
-		ID:       "low-charge",
-		Title:    "Low refrigerant (a leak)",
-		Icon:     "💧",
-		Phase:    "evaporation",
-		Severity: "Call a pro",
-		Cause:    "A leak somewhere in the sealed loop. Refrigerant is never 'used up' — if you're low, it escaped.",
-		Effect:   "Less refrigerant means the low-side pressure drops, so the evaporator runs colder than designed and can freeze. Meanwhile the compressor runs hot with too little gas flowing through to cool it, and can eventually burn out.",
-		Symptoms: "Warm air, hissing or bubbling sounds, ice on the suction line, and the classic 'it's just not as cold as it used to be.'",
-		Fix:      "A pro has to find and seal the leak, then recharge to spec. Just 'topping it off' wastes refrigerant and the leak comes back.",
-	},
-	{
-		ID:       "dirty-condenser",
-		Title:    "Dirty condenser coil",
-		Icon:     "🍂",
-		Phase:    "condensation",
-		Severity: "DIY / pro",
-		Cause:    "The outdoor coil gets caked with dirt, grass clippings, cottonwood, and leaves.",
-		Effect:   "The coil can't dump its heat to the outside air, so the high-side pressure and temperature climb. The compressor strains against that high pressure, wastes energy, overheats, and may trip its high-pressure safety switch.",
-		Symptoms: "A very hot outdoor unit, high bills, breakers that trip on hot days, and weak cooling exactly when you need it most.",
-		Fix:      "Gently rinse the outdoor coil with a hose (power off) and keep about 2 ft of clearance around the unit.",
-	},
-	{
-		ID:       "dirty-evaporator",
-		Title:    "Dirty evaporator coil",
-		Icon:     "🧼",
-		Phase:    "evaporation",
-		Severity: "Call a pro",
-		Cause:    "Dust slips past a cheap or missing filter over months and coats the indoor coil.",
-		Effect:   "The grime acts like a blanket, insulating the coil so it can't absorb heat from your air. Cooling capacity drops and, like a dirty filter, the coil can ice over.",
-		Symptoms: "Weak cooling even though everything is running, a musty smell, and ice on the coil.",
-		Fix:      "Have a technician clean the coil — it's behind the unit's panels and easy to damage. Then use a good filter to keep it clean.",
-	},
-	{
-		ID:       "frozen-coil",
-		Title:    "Frozen evaporator coil",
-		Icon:     "🧊",
-		Phase:    "evaporation",
-		Severity: "DIY first aid + pro",
-		Cause:    "Almost always a symptom of something else: low airflow (dirty filter or weak blower) or low refrigerant.",
-		Effect:   "Ice encases the coil and blocks the airflow completely, so cooling stops and the melt water can overflow the drain pan and leak.",
-		Symptoms: "Visible ice on the coil or lines, water pooling around the indoor unit, and no cold air at all.",
-		Fix:      "Switch cooling off and run just the fan to thaw it (a few hours), then fix the root cause — change the filter or call a pro for the leak.",
-	},
-	{
-		ID:       "weak-compressor",
-		Title:    "Failing compressor",
-		Icon:     "💔",
-		Phase:    "compression",
-		Severity: "Call a pro",
-		Cause:    "Age, an electrical fault, chronic overheating, or liquid refrigerant slugging back and damaging it.",
-		Effect:   "The pump that drives the entire loop weakens or stops. With no pressure difference, no heat moves anywhere. This is the most expensive part to fail.",
-		Symptoms: "Humming but not starting, hard-start clicking, tripping breakers, or simply no cooling at all.",
-		Fix:      "A pro must replace it — often costly enough that a whole new unit makes more sense. Prevent it by fixing leaks and dirty coils early, since those kill compressors.",
-	},
-	{
-		ID:       "bad-capacitor",
-		Title:    "Failed capacitor",
-		Icon:     "🔋",
-		Phase:    "compression",
-		Severity: "Call a pro",
-		Cause:    "Capacitors store and release the electrical jolt that starts and runs the compressor and the fan motors. Heat and age make them weaken, bulge, and fail — it's one of the single most common AC breakdowns, especially in a heat wave.",
-		Effect:   "Without the capacitor's boost, a motor can't get going or keeps stalling. The outdoor fan may sit dead still while the unit just hums, or the compressor strains to start, pulls huge current, and trips the breaker.",
-		Symptoms: "A humming outdoor unit with a fan that won't spin (sometimes it'll start if you nudge a blade — a classic sign), a clicking or buzzing relay, no cooling on the hottest days, or a visibly swollen, domed top on the capacitor.",
-		Fix:      "It's a cheap part, but it holds a dangerous charge even with the power off. A pro discharges it safely and installs one with the exact microfarad (µF) and voltage rating.",
-	},
-	{
-		ID:       "stuck-valve",
-		Title:    "Stuck metering device",
-		Icon:     "🚪",
-		Phase:    "expansion",
-		Severity: "Call a pro",
-		Cause:    "Debris, moisture freezing inside it, or a failed sensing bulb on the expansion valve.",
-		Effect:   "Stuck closed/restricted, it starves the evaporator (which then freezes, just like low charge). Stuck open, it floods too much liquid through, which slugs back and can wreck the compressor.",
-		Symptoms: "Poor cooling, frost showing up in odd spots, and unusual compressor noise.",
-		Fix:      "Needs a technician to diagnose and replace the valve and clear whatever fouled it.",
-	},
-	{
-		ID:       "overcharge",
-		Title:    "Too much refrigerant",
-		Icon:     "📈",
-		Phase:    "compression",
-		Severity: "Call a pro",
-		Cause:    "Someone added more refrigerant than the system is rated for — more isn't better.",
-		Effect:   "Excess liquid raises the high-side pressure and can flood back to the compressor. Counter-intuitively, capacity and efficiency actually drop.",
-		Symptoms: "High energy bills, high head pressure on the gauges, and compressor wear over time.",
-		Fix:      "A pro reclaims the excess to bring the charge back to the exact spec on the unit's label.",
-	},
-}
-
-// schemaJSON builds the JSON-LD block describing the page for search engines.
-// json.Marshal escapes <, > and & by default, so this is safe to drop straight
-// into a <script> element.
-func schemaJSON() template.JS {
-	const desc = "An interactive diagram of the refrigeration cycle. See how your home AC and heat pump move heat, compare refrigerants, and learn what commonly goes wrong."
-	doc := map[string]any{
-		"@context": "https://schema.org",
-		"@graph": []any{
-			map[string]any{
-				"@type":       "WebSite",
-				"@id":         "https://" + canonicalHost + "/#website",
-				"url":         "https://" + canonicalHost + "/",
-				"name":        "Learn Cooling",
-				"description": desc,
-				"inLanguage":  "en",
-			},
-			map[string]any{
-				"@type":            "TechArticle",
-				"@id":              "https://" + canonicalHost + "/#article",
-				"isPartOf":         map[string]any{"@id": "https://" + canonicalHost + "/#website"},
-				"mainEntityOfPage": "https://" + canonicalHost + "/",
-				"headline":         "How Air Conditioning Works: The Refrigeration Cycle Explained",
-				"description":      desc,
-				"image":            "https://" + canonicalHost + "/static/og.png",
-				"inLanguage":       "en",
-				"about": []any{
-					map[string]any{"@type": "Thing", "name": "Refrigeration cycle"},
-					map[string]any{"@type": "Thing", "name": "Air conditioning"},
-					map[string]any{"@type": "Thing", "name": "Heat pump"},
-				},
-			},
-		},
-	}
-	b, err := json.Marshal(doc)
-	if err != nil {
-		log.Printf("schema marshal: %v", err)
-		return template.JS("{}")
-	}
-	return template.JS(b)
-}
+var (
+	indexTmpl       = mustPage("index.html")
+	problemTmpl     = mustPage("problem.html")
+	problemsTmpl    = mustPage("problems.html")
+	refrigerantTmpl = mustPage("refrigerants.html")
+	heatPumpTmpl    = mustPage("heatpumps.html")
+	notFoundTmpl    = mustPage("404.html")
+)
 
 // cyclePayload is the full dataset the page needs, served as one JSON document.
 type cyclePayload struct {
@@ -419,17 +84,15 @@ func main() {
 		port = "8080"
 	}
 
-	tmpl := template.Must(template.ParseFS(templatesFS, "web/templates/*.html"))
-
 	staticRoot, err := fs.Sub(staticFS, "web/static")
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	mux := http.NewServeMux()
-	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.FS(staticRoot))))
+	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.FS(staticRoot))))
 
-	mux.HandleFunc("/api/cycle", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /api/cycle", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, cyclePayload{
 			Modes:        modes,
 			Refrigerants: refrigerants,
@@ -440,63 +103,268 @@ func main() {
 	})
 
 	// Kept for backwards compatibility — just the phases.
-	mux.HandleFunc("/api/phases", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /api/phases", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, phases)
 	})
 
-	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("ok"))
 	})
 
-	// Crawlers need /api/ — the page builds its content from /api/cycle, so
+	// Crawlers need /api/ — the home page builds its diagram from /api/cycle, so
 	// blocking it would leave Googlebot looking at an empty shell.
-	mux.HandleFunc("/robots.txt", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /robots.txt", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		fmt.Fprintf(w, "User-agent: *\nAllow: /\n\nSitemap: https://%s/sitemap.xml\n", canonicalHost)
+		fmt.Fprintf(w, "User-agent: *\nAllow: /\n\nSitemap: %s/sitemap.xml\n", siteURL)
 	})
 
-	mux.HandleFunc("/sitemap.xml", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/xml; charset=utf-8")
-		fmt.Fprintf(w, `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url>
-    <loc>https://%s/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>1.0</priority>
-  </url>
-</urlset>
-`, canonicalHost)
-	})
+	mux.HandleFunc("GET /sitemap.xml", handleSitemap)
 
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/" {
-			http.NotFound(w, r)
-			return
-		}
-		data := struct {
-			Phases     []Phase
-			Fans       []Fan
-			Faults     []Fault
-			Year       int
-			SchemaJSON template.JS
-		}{
-			Phases:     phases,
-			Fans:       fans,
-			Faults:     faults,
-			Year:       time.Now().Year(),
-			SchemaJSON: schemaJSON(),
-		}
-		if err := tmpl.ExecuteTemplate(w, "index.html", data); err != nil {
-			log.Printf("template error: %v", err)
-			http.Error(w, "internal error", http.StatusInternalServerError)
-		}
-	})
+	mux.HandleFunc("GET /{$}", handleIndex)
+	mux.HandleFunc("GET /problems", handleProblems)
+	mux.HandleFunc("GET /problems/{$}", handleProblems)
+	mux.HandleFunc("GET /problems/{slug}", handleProblem)
+	mux.HandleFunc("GET /refrigerants", handleRefrigerants)
+	mux.HandleFunc("GET /heat-pumps", handleHeatPumps)
+
+	// Anything else.
+	mux.HandleFunc("/", handleNotFound)
 
 	log.Printf("learn-cooling listening on :%s", port)
 	if err := http.ListenAndServe(":"+port, logRequests(canonicalRedirect(mux))); err != nil {
 		log.Fatal(err)
 	}
 }
+
+// ---- handlers --------------------------------------------------------------
+
+const homeDesc = "An interactive diagram of the refrigeration cycle. See how your home AC and heat pump move heat, compare refrigerants, and learn what commonly goes wrong."
+
+func handleIndex(w http.ResponseWriter, r *http.Request) {
+	render(w, indexTmpl, pageData{
+		Meta: PageMeta{
+			Title:       "How Air Conditioning Works: The Refrigeration Cycle Explained",
+			Description: homeDesc,
+			Path:        "/",
+			SchemaJSON:  homeSchema(),
+		},
+		Modes:        modes,
+		Phases:       phases,
+		Fans:         fans,
+		Faults:       faults,
+		Refrigerants: refrigerants,
+	})
+}
+
+func handleProblems(w http.ResponseWriter, r *http.Request) {
+	render(w, problemsTmpl, pageData{
+		Meta: PageMeta{
+			Title:       "AC Troubleshooting: 9 Common Problems and What Causes Them",
+			Description: "Why your AC isn't cooling — frozen coils, refrigerant leaks, bad capacitors, dirty coils and more, each explained by what it does to the refrigeration cycle.",
+			Path:        "/problems",
+			SchemaJSON:  collectionSchema(),
+		},
+		Faults: faults,
+	})
+}
+
+func handleProblem(w http.ResponseWriter, r *http.Request) {
+	f, ok := faultBySlug[r.PathValue("slug")]
+	if !ok {
+		handleNotFound(w, r)
+		return
+	}
+	render(w, problemTmpl, pageData{
+		Meta: PageMeta{
+			Title:       f.MetaTitle,
+			Description: f.MetaDesc,
+			Path:        "/problems/" + f.Slug,
+			SchemaJSON:  problemSchema(f),
+		},
+		Fault:    f,
+		Related:  relatedFaults(f),
+		RelPhase: phaseByID(f.Phase),
+	})
+}
+
+func handleRefrigerants(w http.ResponseWriter, r *http.Request) {
+	render(w, refrigerantTmpl, pageData{
+		Meta: PageMeta{
+			Title:       "AC Refrigerants Compared: R-410A vs R-32 vs R-134a vs Ammonia",
+			Description: "What refrigerant actually does, and how R-410A, R-32, R-134a and R-717 (ammonia) compare on pressure, discharge temperature, safety and global-warming impact.",
+			Path:        "/refrigerants",
+			SchemaJSON:  articleSchema("AC Refrigerants Compared: R-410A vs R-32 vs R-134a vs Ammonia", "/refrigerants", "Refrigerants"),
+		},
+		Refrigerants: refrigerants,
+		Modes:        modes,
+	})
+}
+
+func handleHeatPumps(w http.ResponseWriter, r *http.Request) {
+	render(w, heatPumpTmpl, pageData{
+		Meta: PageMeta{
+			Title:       "Do Heat Pumps Work in Cold Weather? How the Cycle Reverses",
+			Description: "A heat pump is an air conditioner running backwards. How the reversing valve flips the loop, why it can pull heat from freezing air, and what defrost mode is doing.",
+			Path:        "/heat-pumps",
+			SchemaJSON:  articleSchema("Do Heat Pumps Work in Cold Weather? How the Cycle Reverses", "/heat-pumps", "Heat pumps"),
+		},
+		Phases: phases,
+		Modes:  modes,
+	})
+}
+
+func handleNotFound(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotFound)
+	renderStatus(w, notFoundTmpl, pageData{
+		Meta: PageMeta{
+			Title:       "Page not found — Learn Cooling",
+			Description: "That page doesn't exist.",
+			Path:        r.URL.Path,
+		},
+		Faults: faults,
+	})
+}
+
+func handleSitemap(w http.ResponseWriter, r *http.Request) {
+	paths := []string{"/", "/problems", "/refrigerants", "/heat-pumps"}
+	for i := range faults {
+		paths = append(paths, "/problems/"+faults[i].Slug)
+	}
+
+	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
+	fmt.Fprint(w, `<?xml version="1.0" encoding="UTF-8"?>`+"\n")
+	fmt.Fprint(w, `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">`+"\n")
+	for _, p := range paths {
+		priority := "0.8"
+		if p == "/" {
+			priority = "1.0"
+		}
+		fmt.Fprintf(w, "  <url>\n    <loc>%s%s</loc>\n    <changefreq>monthly</changefreq>\n    <priority>%s</priority>\n  </url>\n",
+			siteURL, p, priority)
+	}
+	fmt.Fprint(w, "</urlset>\n")
+}
+
+func render(w http.ResponseWriter, t *template.Template, d pageData) {
+	renderStatus(w, t, d)
+}
+
+func renderStatus(w http.ResponseWriter, t *template.Template, d pageData) {
+	d.Year = time.Now().Year()
+	if err := t.ExecuteTemplate(w, "layout", d); err != nil {
+		log.Printf("template error (%s): %v", d.Meta.Path, err)
+	}
+}
+
+// ---- structured data -------------------------------------------------------
+
+func website() map[string]any {
+	return map[string]any{
+		"@type":       "WebSite",
+		"@id":         siteURL + "/#website",
+		"url":         siteURL + "/",
+		"name":        "Learn Cooling",
+		"description": homeDesc,
+		"inLanguage":  "en",
+	}
+}
+
+// breadcrumb builds a BreadcrumbList from Home down to the current page.
+func breadcrumb(trail ...[2]string) map[string]any {
+	items := []any{}
+	for i, t := range trail {
+		items = append(items, map[string]any{
+			"@type":    "ListItem",
+			"position": i + 1,
+			"name":     t[0],
+			"item":     siteURL + t[1],
+		})
+	}
+	return map[string]any{"@type": "BreadcrumbList", "itemListElement": items}
+}
+
+func marshalSchema(graph ...any) template.JS {
+	b, err := json.Marshal(map[string]any{
+		"@context": "https://schema.org",
+		"@graph":   graph,
+	})
+	if err != nil {
+		log.Printf("schema marshal: %v", err)
+		return template.JS("{}")
+	}
+	// json.Marshal escapes <, > and & by default, so this is safe inline.
+	return template.JS(b)
+}
+
+func homeSchema() template.JS {
+	return marshalSchema(website(), map[string]any{
+		"@type":            "TechArticle",
+		"@id":              siteURL + "/#article",
+		"isPartOf":         map[string]any{"@id": siteURL + "/#website"},
+		"mainEntityOfPage": siteURL + "/",
+		"headline":         "How Air Conditioning Works: The Refrigeration Cycle Explained",
+		"description":      homeDesc,
+		"image":            siteURL + "/static/og.png",
+		"inLanguage":       "en",
+		"about": []any{
+			map[string]any{"@type": "Thing", "name": "Refrigeration cycle"},
+			map[string]any{"@type": "Thing", "name": "Air conditioning"},
+			map[string]any{"@type": "Thing", "name": "Heat pump"},
+		},
+	})
+}
+
+func collectionSchema() template.JS {
+	items := []any{}
+	for i := range faults {
+		items = append(items, map[string]any{
+			"@type":    "ListItem",
+			"position": i + 1,
+			"name":     faults[i].Question,
+			"url":      siteURL + "/problems/" + faults[i].Slug,
+		})
+	}
+	return marshalSchema(website(),
+		map[string]any{
+			"@type":            "CollectionPage",
+			"mainEntityOfPage": siteURL + "/problems",
+			"headline":         "AC Troubleshooting: Common Problems and What Causes Them",
+			"mainEntity":       map[string]any{"@type": "ItemList", "itemListElement": items},
+		},
+		breadcrumb([2]string{"Home", "/"}, [2]string{"Troubleshooting", "/problems"}),
+	)
+}
+
+func problemSchema(f *Fault) template.JS {
+	return marshalSchema(website(),
+		map[string]any{
+			"@type":            "TechArticle",
+			"mainEntityOfPage": siteURL + "/problems/" + f.Slug,
+			"headline":         f.Question,
+			"description":      f.MetaDesc,
+			"image":            siteURL + "/static/og.png",
+			"inLanguage":       "en",
+			"isPartOf":         map[string]any{"@id": siteURL + "/#website"},
+		},
+		breadcrumb([2]string{"Home", "/"}, [2]string{"Troubleshooting", "/problems"}, [2]string{f.Title, "/problems/" + f.Slug}),
+	)
+}
+
+func articleSchema(headline, path, crumb string) template.JS {
+	return marshalSchema(website(),
+		map[string]any{
+			"@type":            "TechArticle",
+			"mainEntityOfPage": siteURL + path,
+			"headline":         headline,
+			"image":            siteURL + "/static/og.png",
+			"inLanguage":       "en",
+			"isPartOf":         map[string]any{"@id": siteURL + "/#website"},
+		},
+		breadcrumb([2]string{"Home", "/"}, [2]string{crumb, path}),
+	)
+}
+
+// ---- middleware / util -----------------------------------------------------
 
 // canonicalRedirect 301s the *.onrender.com hostname over to the real domain so
 // the two don't compete as duplicate content. It deliberately leaves /healthz
@@ -509,7 +377,7 @@ func canonicalRedirect(next http.Handler) http.Handler {
 			host = host[:i]
 		}
 		if r.URL.Path != "/healthz" && strings.HasSuffix(host, ".onrender.com") {
-			http.Redirect(w, r, "https://"+canonicalHost+r.URL.RequestURI(), http.StatusMovedPermanently)
+			http.Redirect(w, r, siteURL+r.URL.RequestURI(), http.StatusMovedPermanently)
 			return
 		}
 		next.ServeHTTP(w, r)

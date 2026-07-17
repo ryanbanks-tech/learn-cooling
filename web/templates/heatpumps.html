@@ -1,0 +1,87 @@
+{{define "content"}}
+<article class="doc">
+    <p class="crumbs"><a href="/">Home</a> <span>›</span> Heat pumps</p>
+
+    <h1>Do heat pumps work in cold weather?</h1>
+
+    <p class="answer">
+        Yes — and the reason surprises people. A heat pump is just an air conditioner running
+        backwards. Even air at 0&nbsp;°C is full of heat energy; it's only "cold" relative to
+        you. If you make the refrigerant colder than the outdoor air — say −7&nbsp;°C — then
+        heat flows <em>into</em> it, exactly as physics demands. The heat pump then squeezes
+        that harvested heat up to a useful temperature and releases it in your living room.
+    </p>
+
+    <h2>It's the same loop, pointed the other way</h2>
+    <p>
+        Nothing about the <a href="/">refrigeration cycle</a> changes. There's still a
+        compressor, a condenser, a metering device, and an evaporator, in that order. What
+        changes is <strong>which coil is which</strong>. A component called the
+        <strong>reversing valve</strong> redirects the hot gas leaving the compressor:
+    </p>
+    <ul class="plain-list">
+        <li><strong>Cooling:</strong> hot gas goes to the <em>outdoor</em> coil, which becomes
+            the condenser and dumps your home's heat outside. The indoor coil is the
+            evaporator, absorbing heat from your rooms.</li>
+        <li><strong>Heating:</strong> hot gas goes to the <em>indoor</em> coil, which becomes
+            the condenser and releases heat into your rooms. The outdoor coil is now the
+            evaporator, absorbing heat from the cold outside air.</li>
+    </ul>
+    <p>
+        That's the whole trick. The "waste heat" that a normal AC throws away outdoors is,
+        in winter, the entire point.
+    </p>
+
+    <h2>What happens at each stage in heating mode</h2>
+    {{range .Phases}}
+    <div class="hp-stage">
+        <h3><span class="hp-num">{{.Number}}</span> {{.Name}} — {{.Component}}</h3>
+        <p class="hp-where">{{.HeatLocation}}</p>
+        <p>{{.HeatNote}}</p>
+    </div>
+    {{end}}
+
+    <aside class="tie">
+        Flip the <a href="/">interactive diagram</a> into heating mode to watch these
+        temperatures and pressures change for real — including how much hotter the compressor
+        discharge gets.
+    </aside>
+
+    <h2>Why a heat pump needs a defrost cycle</h2>
+    <p>
+        To pull heat out of freezing air, the outdoor coil has to be
+        <strong>colder than that air</strong> — often around −7&nbsp;°C. Moisture in the air
+        condenses on it and freezes, and a coil wearing an ice coat can't absorb anything. So
+        periodically the unit briefly flips itself back into <em>cooling</em> mode, sending
+        hot gas out to melt the ice off its own outdoor coil. That's what's happening when
+        you see your heat pump steaming outside in winter and the indoor air goes briefly
+        cool — it isn't broken, it's defrosting.
+    </p>
+
+    <h2>Where the efficiency comes from</h2>
+    <p>
+        A resistance heater turns one unit of electricity into one unit of heat, and that's
+        the ceiling. A heat pump doesn't <em>make</em> heat — it <em>moves</em> heat that
+        already exists, so one unit of electricity can deliver two, three, or four units of
+        heat into your house. You're paying for the pump, not the heat.
+    </p>
+    <p>
+        The catch is that the colder it gets outside, the less heat there is to harvest and
+        the harder the compressor has to squeeze — so efficiency falls as the temperature
+        drops. Modern cold-climate units keep working well below −15&nbsp;°C, but older
+        models lean on backup resistance heat once it gets cold enough, which is why some
+        people remember heat pumps as expensive.
+    </p>
+
+    <h2>What goes wrong</h2>
+    <p>
+        A heat pump fails in the same ways an AC does — it's the same machinery. A
+        <a href="/problems/dirty-air-filter">dirty filter</a>,
+        a <a href="/problems/refrigerant-leak">refrigerant leak</a>, or a
+        <a href="/problems/bad-capacitor">failed capacitor</a> will stop it heating just as
+        surely as they stop an AC cooling. One heat-pump-specific tell: if the outdoor coil
+        stays <em>encased</em> in ice rather than clearing periodically, the defrost cycle
+        itself has failed and needs a tech.
+    </p>
+</article>
+{{end}}

@@ -1,0 +1,70 @@
+{{define "layout"}}<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="dark">
+
+    <!-- Google Analytics 4 -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-21842WSWBZ"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-21842WSWBZ');
+    </script>
+
+    <title>{{.Meta.Title}}</title>
+    <meta name="description" content="{{.Meta.Description}}">
+    <link rel="canonical" href="{{.Meta.Canonical}}">
+
+    <!-- Open Graph / social sharing -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{.Meta.Canonical}}">
+    <meta property="og:site_name" content="Learn Cooling">
+    <meta property="og:title" content="{{.Meta.Title}}">
+    <meta property="og:description" content="{{.Meta.Description}}">
+    <meta property="og:image" content="https://learncooling.com/static/og.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Diagram of the refrigeration cycle: compressor, condenser, expansion valve, and evaporator connected in a loop.">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{{.Meta.Title}}">
+    <meta name="twitter:description" content="{{.Meta.Description}}">
+    <meta name="twitter:image" content="https://learncooling.com/static/og.png">
+
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>❄️</text></svg>">
+
+    {{with .Meta.SchemaJSON}}
+    <script type="application/ld+json">
+    {{.}}
+    </script>
+    {{end}}
+</head>
+<body>
+    <nav class="sitenav">
+        <a class="brand" href="/">❄️ Learn&nbsp;Cooling</a>
+        <div class="navlinks">
+            <a href="/problems">Troubleshooting</a>
+            <a href="/refrigerants">Refrigerants</a>
+            <a href="/heat-pumps">Heat pumps</a>
+        </div>
+    </nav>
+
+    {{template "content" .}}
+
+    <footer>
+        <div class="foot-links">
+            <a href="/">How AC works</a>
+            <a href="/problems">Troubleshooting</a>
+            <a href="/refrigerants">Refrigerants</a>
+            <a href="/heat-pumps">Heat pumps</a>
+        </div>
+        <p>Built with Go · Learn Cooling © {{.Year}}</p>
+    </footer>
+
+    {{block "scripts" .}}{{end}}
+</body>
+</html>
+{{end}}

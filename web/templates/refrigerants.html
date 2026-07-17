@@ -1,0 +1,104 @@
+{{define "content"}}
+<article class="doc doc-wide">
+    <p class="crumbs"><a href="/">Home</a> <span>›</span> Refrigerants</p>
+
+    <h1>Refrigerants compared: R-410A, R-32, R-134a and ammonia</h1>
+
+    <p class="answer">
+        A refrigerant is just a fluid chosen because it boils and condenses at convenient
+        temperatures when you squeeze it. Every one of them can move heat — they differ in
+        the <strong>pressure</strong> they need to do it, how <strong>hot</strong> they leave
+        the compressor, how <strong>dangerous</strong> they are, and how much
+        <strong>damage</strong> they do if they escape.
+    </p>
+
+    <h2>The comparison</h2>
+    <p>
+        Pressures below are the saturation pressures at the temperatures a home system
+        actually runs at: about <strong>5&nbsp;°C</strong> in the evaporator and
+        <strong>45&nbsp;°C</strong> in the condenser. That's the key idea — you pick the
+        operating temperatures, and the refrigerant decides what pressure you need to hit them.
+    </p>
+
+    <div class="table-wrap">
+        <table class="ref-table">
+            <thead>
+                <tr>
+                    <th>Refrigerant</th>
+                    <th>Low side<br><span>(5 °C evaporator)</span></th>
+                    <th>High side<br><span>(45 °C condenser)</span></th>
+                    <th>Discharge temp</th>
+                    <th>GWP</th>
+                    <th>Safety</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .Refrigerants}}
+                <tr>
+                    <th scope="row">
+                        <span class="ref-dot" style="background:{{.Color}}"></span>
+                        {{.Name}}<em>{{.AltName}}</em>
+                    </th>
+                    <td>{{.PressureAt 5}}</td>
+                    <td>{{.PressureAt 45}}</td>
+                    <td>~{{.DischargeTemp}} °C</td>
+                    <td>{{.GWPLabel}}</td>
+                    <td>{{.Safety}}</td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </div>
+
+    <h2>What the numbers actually mean</h2>
+
+    {{range .Refrigerants}}
+    <div class="ref-block" style="border-color:{{.Color}}">
+        <h3>{{.Name}} <span class="ref-alt">{{.AltName}}</span></h3>
+        <p class="ref-use">{{.Use}}</p>
+        <p>{{.Note}}</p>
+    </div>
+    {{end}}
+
+    <h2>Why ammonia is the odd one out</h2>
+    <p>
+        R-717 is the most thermodynamically efficient of the bunch and has a global-warming
+        potential of exactly zero — it's been used since the 1800s and still runs most of the
+        world's cold storage, food plants, and ice rinks. So why isn't it in your house?
+        Because it's <strong>toxic</strong>, it's <strong>corrosive to copper</strong> (so the
+        whole system has to be steel), and it leaves the compressor at around
+        <strong>120&nbsp;°C</strong>. Those are manageable problems in a plant room with
+        trained staff and leak detection. They are not manageable in a closet next to your
+        bedroom.
+    </p>
+
+    <h2>Why your system's refrigerant is changing</h2>
+    <p>
+        R-410A dominated U.S. homes for two decades, but with a GWP of 2,088 it's being phased
+        down — a kilogram leaking out does the atmospheric damage of about two tonnes of CO₂.
+        R-32 is the main replacement: roughly a third of the warming impact, slightly higher
+        pressures, and a hotter compressor discharge. The trade-off is that it's classed
+        <strong>A2L</strong> — mildly flammable — which is why newer equipment has different
+        handling rules.
+    </p>
+    <p>
+        This matters for repairs. If you're weighing a
+        <a href="/problems/compressor-failure">compressor replacement</a> on an aging R-410A
+        system, the refrigerant phase-down is a real part of the repair-or-replace math.
+    </p>
+
+    <aside class="tie">
+        Want to see how the pressures change as the refrigerant moves around the loop?
+        The <a href="/">interactive diagram</a> lets you switch between all four of these and
+        watch every number update at each stage.
+    </aside>
+
+    <h2>A note on leaks</h2>
+    <p>
+        Whichever fluid you have, it runs in a sealed loop and is <strong>never consumed</strong>.
+        If a tech says you're low, you have a
+        <a href="/problems/refrigerant-leak">leak</a> — and topping it off without finding
+        that leak vents a potent greenhouse gas straight into the atmosphere.
+    </p>
+</article>
+{{end}}

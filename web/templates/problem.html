@@ -1,0 +1,62 @@
+{{define "content"}}
+<article class="doc">
+    <p class="crumbs">
+        <a href="/">Home</a> <span>›</span>
+        <a href="/problems">Troubleshooting</a> <span>›</span>
+        {{.Fault.Title}}
+    </p>
+
+    <h1><span class="doc-icon">{{.Fault.Icon}}</span> {{.Fault.Question}}</h1>
+
+    <div class="doc-meta">
+        <span class="fault-sev sev-{{.Fault.SevClass}}">{{.Fault.Severity}}</span>
+        {{with .RelPhase}}
+        <span class="doc-phase">Breaks stage {{.Number}}: {{.Name}}</span>
+        {{end}}
+    </div>
+
+    <p class="answer">{{.Fault.Answer}}</p>
+
+    <h2>What causes it</h2>
+    <p>{{.Fault.Cause}}</p>
+
+    <h2>What it does to the cycle</h2>
+    <p>{{.Fault.Effect}}</p>
+
+    {{with .RelPhase}}
+    <aside class="tie">
+        This wrecks <strong>{{.Name}}</strong> — stage {{.Number}} of four, at the
+        {{.Component}}. {{.Summary}}
+        <a href="/">See it in the interactive diagram →</a>
+    </aside>
+    {{end}}
+
+    <h2>What you'd notice</h2>
+    <p>{{.Fault.Symptoms}}</p>
+
+    <h2>What to do about it</h2>
+    <ol class="steps">
+        {{range .Fault.Steps}}<li>{{.}}</li>{{end}}
+    </ol>
+
+    <h2>The bottom line</h2>
+    <p>{{.Fault.Fix}}</p>
+
+    {{if .Related}}
+    <h2>Related problems</h2>
+    <div class="related">
+        {{range .Related}}
+        <a class="related-card" href="/problems/{{.Slug}}">
+            <span class="related-icon">{{.Icon}}</span>
+            <span>
+                <strong>{{.Title}}</strong>
+                <em>{{.Question}}</em>
+            </span>
+        </a>
+        {{end}}
+    </div>
+    {{end}}
+
+    <p class="back"><a href="/problems">← All AC problems</a></p>
+</article>
+{{end}}

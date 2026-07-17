@@ -1,0 +1,44 @@
+{{define "content"}}
+<header class="page-hero">
+    <p class="crumbs"><a href="/">Home</a> <span>›</span> Troubleshooting</p>
+    <h1>AC troubleshooting: what's actually wrong</h1>
+    <p class="lede">
+        Almost every home-AC failure traces back to one of these nine. Each is explained by
+        what it does to the <a href="/">refrigeration cycle</a> — so you understand the fix
+        instead of just parroting it.
+    </p>
+</header>
+
+<main>
+    <div class="problem-list">
+        {{range .Faults}}
+        <a class="problem-card" href="/problems/{{.Slug}}">
+            <span class="problem-icon">{{.Icon}}</span>
+            <div class="problem-body">
+                <h2>{{.Question}}</h2>
+                <p>{{.Cause}}</p>
+                <span class="problem-more">Read the fix →</span>
+            </div>
+            <span class="fault-sev sev-{{.SevClass}}">{{.Severity}}</span>
+        </a>
+        {{end}}
+    </div>
+
+    <section class="prose">
+        <h2>Start here if you're not sure</h2>
+        <p>
+            Two symptoms cover most calls. <strong>Ice on the coil</strong> is almost always
+            airflow or refrigerant — start with
+            <a href="/problems/frozen-evaporator-coil">the frozen coil guide</a>. An
+            <strong>outdoor unit that hums but won't spin</strong> is very often a
+            <a href="/problems/bad-capacitor">failed capacitor</a>, a cheap part that mimics
+            far more expensive failures.
+        </p>
+        <p>
+            Not sure what the parts even do? The
+            <a href="/">interactive cycle diagram</a> walks through all four stages in about
+            two minutes.
+        </p>
+    </section>
+</main>
+{{end}}
