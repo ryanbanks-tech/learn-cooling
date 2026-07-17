@@ -50,7 +50,13 @@ Then open http://localhost:8080. Set `PORT` to change the port.
 | `/api/cycle`   | Full dataset: modes, refrigerants, phases, faults |
 | `/api/phases`  | Just the four phases (kept for compatibility) |
 | `/healthz`     | Health check (used by Render)                 |
-| `/static/*`    | Embedded CSS / JS                             |
+| `/robots.txt`  | Crawler rules + sitemap pointer               |
+| `/sitemap.xml` | Sitemap                                       |
+| `/static/*`    | Embedded CSS / JS / OG image                  |
+
+Requests to the raw `*.onrender.com` hostname are 301'd to `learncooling.com` so
+the two don't compete as duplicate content. `/healthz` is exempt so Render's
+health probe still works.
 
 ## Deploy
 

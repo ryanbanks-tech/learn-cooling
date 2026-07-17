@@ -3,13 +3,20 @@ package main
 import (
 	"embed"
 	"encoding/json"
+	"fmt"
 	"html/template"
 	"io/fs"
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 )
+
+// canonicalHost is the one hostname we want search engines to index. Requests
+// arriving on the raw Render hostname get redirected here so ranking signals
+// aren't split across two domains serving identical content.
+const canonicalHost = "learncooling.com"
 
 //go:embed web/templates/*.html
 var templatesFS embed.FS
@@ -356,6 +363,47 @@ var faults = []Fault{
 	},
 }
 
+// schemaJSON builds the JSON-LD block describing the page for search engines.
+// json.Marshal escapes <, > and & by default, so this is safe to drop straight
+// into a <script> element.
+func schemaJSON() template.JS {
+	const desc = "An interactive diagram of the refrigeration cycle. See how your home AC and heat pump move heat, compare refrigerants, and learn what commonly goes wrong."
+	doc := map[string]any{
+		"@context": "https://schema.org",
+		"@graph": []any{
+			map[string]any{
+				"@type":       "WebSite",
+				"@id":         "https://" + canonicalHost + "/#website",
+				"url":         "https://" + canonicalHost + "/",
+				"name":        "Learn Cooling",
+				"description": desc,
+				"inLanguage":  "en",
+			},
+			map[string]any{
+				"@type":            "TechArticle",
+				"@id":              "https://" + canonicalHost + "/#article",
+				"isPartOf":         map[string]any{"@id": "https://" + canonicalHost + "/#website"},
+				"mainEntityOfPage": "https://" + canonicalHost + "/",
+				"headline":         "How Air Conditioning Works: The Refrigeration Cycle Explained",
+				"description":      desc,
+				"image":            "https://" + canonicalHost + "/static/og.png",
+				"inLanguage":       "en",
+				"about": []any{
+					map[string]any{"@type": "Thing", "name": "Refrigeration cycle"},
+					map[string]any{"@type": "Thing", "name": "Air conditioning"},
+					map[string]any{"@type": "Thing", "name": "Heat pump"},
+				},
+			},
+		},
+	}
+	b, err := json.Marshal(doc)
+	if err != nil {
+		log.Printf("schema marshal: %v", err)
+		return template.JS("{}")
+	}
+	return template.JS(b)
+}
+
 // cyclePayload is the full dataset the page needs, served as one JSON document.
 type cyclePayload struct {
 	Modes        []Mode        `json:"modes"`
@@ -400,21 +448,43 @@ func main() {
 		w.Write([]byte("ok"))
 	})
 
+	// Crawlers need /api/ — the page builds its content from /api/cycle, so
+	// blocking it would leave Googlebot looking at an empty shell.
+	mux.HandleFunc("/robots.txt", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		fmt.Fprintf(w, "User-agent: *\nAllow: /\n\nSitemap: https://%s/sitemap.xml\n", canonicalHost)
+	})
+
+	mux.HandleFunc("/sitemap.xml", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/xml; charset=utf-8")
+		fmt.Fprintf(w, `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://%s/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>1.0</priority>
+  </url>
+</urlset>
+`, canonicalHost)
+	})
+
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
 			http.NotFound(w, r)
 			return
 		}
 		data := struct {
-			Phases []Phase
-			Fans   []Fan
-			Faults []Fault
-			Year   int
+			Phases     []Phase
+			Fans       []Fan
+			Faults     []Fault
+			Year       int
+			SchemaJSON template.JS
 		}{
-			Phases: phases,
-			Fans:   fans,
-			Faults: faults,
-			Year:   time.Now().Year(),
+			Phases:     phases,
+			Fans:       fans,
+			Faults:     faults,
+			Year:       time.Now().Year(),
+			SchemaJSON: schemaJSON(),
 		}
 		if err := tmpl.ExecuteTemplate(w, "index.html", data); err != nil {
 			log.Printf("template error: %v", err)
@@ -423,9 +493,27 @@ func main() {
 	})
 
 	log.Printf("learn-cooling listening on :%s", port)
-	if err := http.ListenAndServe(":"+port, logRequests(mux)); err != nil {
+	if err := http.ListenAndServe(":"+port, logRequests(canonicalRedirect(mux))); err != nil {
 		log.Fatal(err)
 	}
+}
+
+// canonicalRedirect 301s the *.onrender.com hostname over to the real domain so
+// the two don't compete as duplicate content. It deliberately leaves /healthz
+// alone (Render probes the service on its own hostname) and ignores localhost so
+// local development still works.
+func canonicalRedirect(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		host := r.Host
+		if i := strings.IndexByte(host, ':'); i >= 0 {
+			host = host[:i]
+		}
+		if r.URL.Path != "/healthz" && strings.HasSuffix(host, ".onrender.com") {
+			http.Redirect(w, r, "https://"+canonicalHost+r.URL.RequestURI(), http.StatusMovedPermanently)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func writeJSON(w http.ResponseWriter, v any) {
